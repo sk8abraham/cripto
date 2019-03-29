@@ -98,20 +98,34 @@ def Cipher(inp, w, Nr):
         for c in range(Nb):
             state[r][c]=inp[r+(4*c)]
     ############## Ronda 0 ###############
-    print 'round[ 0].input\t',
+    print 'round[00].input\t',
     for i in range(4):
         for j in range(4):
             print '%s'%hex(state[j][i])[2:].zfill(2), 
-    print '\nround[ 0].k_sch\t',
+    print '\nround[00].k_sch\t',
     for i in range(4):
         for j in range(4):
             print '%s'%hex(round_key[j][i])[2:].zfill(2),
     state = AddRoundKey(state, round_key)
-    print '\nround[ 1].input\t',
+    print '\nround[01].input\t',
     for i in range(4):
         for j in range(4):
             print '%s'%hex(state[j][i])[2:].zfill(2), 
     ######################################
+    for round in range(1,Nr):
+        state = SubBytes(state)
+        print '\nround[%s].input\t'%(str(round).zfill(2))
+        for i in range(4):
+            for j in range(4):
+                print '%s'%hex(state[j][i])[2:].zfill(2), 
+        
+def SubBytes(state):
+    for i in range(4):
+        for j in range(4):
+            p0 = int(hex(state[i][j])[2:].zfill(2)[0],16)
+            p1 = int(hex(state[i][j])[2:].zfill(2)[1],16)
+            state[i][j] = sbox[p0][p1]
+    return state
 
 def AddRoundKey(state, round_k):
     for i in range(4):
