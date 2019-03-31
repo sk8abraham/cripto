@@ -2,6 +2,7 @@
 
 res={'v1':'        ','v2':'        ','v3':'        ','v4':'        ','v5':'        ','v6':'        ','v7':'        ','v8':'        '}
 Nb = 4
+
 ebox = [
         [0x01,0x03,0x05,0x0f,0x11,0x33,0x55,0xff,0x1a,0x2e,0x72,0x96,0xa1,0xf8,0x13,0x35],
         [0x5f,0xe1,0x38,0x48,0xd8,0x73,0x95,0xa4,0xf7,0x02,0x06,0x0a,0x1e,0x22,0x66,0xaa],
@@ -22,7 +23,7 @@ ebox = [
     ]
 
 lbox= [
-        ['',0x00,0x19,0x01,0x32,0x02,0x1a,0xc6,0x4b,0xc7,0x1b,0x68,0x33,0xee,0xdf,0x03],
+        [0x00,0x00,0x19,0x01,0x32,0x02,0x1a,0xc6,0x4b,0xc7,0x1b,0x68,0x33,0xee,0xdf,0x03],
         [0x64,0x04,0xe0,0x0e,0x34,0x8d,0x81,0xef,0x4c,0x71,0x08,0xc8,0xf8,0x69,0x1c,0xc1],
         [0x7d,0xc2,0x1d,0xb5,0xf9,0xb9,0x27,0x6a,0x4d,0xe4,0xa6,0x72,0x9a,0xc9,0x09,0x78],
         [0x65,0x2f,0x8a,0x05,0x21,0x0f,0xe1,0x24,0x12,0xf0,0x82,0x45,0x35,0x93,0xda,0x8e],
@@ -79,6 +80,12 @@ sboxInv=[
 
 rcon = [0,0x01000000,0x02000000,0x04000000,0x08000000,0x10000000,0x20000000,0x40000000,0x80000000,0x1b000000,0x36000000]
 
+mix = [
+            [0x02,0x03,0x01,0x01],
+            [0x01,0x02,0x03,0x01],
+            [0x01,0x01,0x02,0x03],
+            [0x03,0x01,0x01,0x02]
+          ]
 
 def main():
     Nk = 0
@@ -107,13 +114,14 @@ def Cipher(inp, w, Nr):
         for j in range(4):
             print '%s'%hex(round_key[j][i])[2:].zfill(2),
     state = AddRoundKey(state, round_key)
-    print '\nround[01].start\t',
-    for i in range(4):
-        for j in range(4):
-            print '%s'%hex(state[j][i])[2:].zfill(2), 
     ######################################
     for r in range(1,Nr):
+        print '\nround[%s].start\t'%(str(r).zfill(2)),
+        for i in range(4):
+            for j in range(4):
+                print '%s'%hex(state[j][i])[2:].zfill(2), 
         state = SubBytes(state)
+        round_key = round_k(w[r*4:r*4+4])
         print '\nround[%s].s_box\t'%(str(r).zfill(2)),
         for i in range(4):
             for j in range(4):
@@ -123,11 +131,46 @@ def Cipher(inp, w, Nr):
         for i in range(4):
             for j in range(4):
                 print '%s'%hex(state[j][i])[2:].zfill(2),
+        #return
+        state = MixColumns(state)
+        print '\nround[%s].m_col\t'%(str(r).zfill(2)),
+        for i in range(4):
+            for j in range(4):
+                print '%s'%hex(state[j][i])[2:].zfill(2),
+        state = AddRoundKey(state,round_key)
+        print '\nround[%s].k_sch\t'%(str(r).zfill(2)),
+        for i in range(4):
+            for j in range(4):
+                print '%s'%hex(round_key[j][i])[2:].zfill(2),
+
+def MixColumns(state):
+    t=[]
+    state_aux = [[0 for x in range(4)] for x in range(Nb)]
+    for i in range(4):
+        for j in range(4):
+            for k in range(4):
+                l0 = int(hex(state[k][j])[2:].zfill(2)[0],16)
+                l1 = int(hex(state[k][j])[2:].zfill(2)[1],16)
+                e0 = int(hex(mix[i][k])[2:].zfill(2)[0],16)
+                e1 = int(hex(mix[i][k])[2:].zfill(2)[1],16)
+                tmp = lbox[l0][l1] + lbox[e0][e1]
+                tmp = ebox[int(hex(tmp)[2:].zfill(2)[0],16)][int(hex(tmp)[2:].zfill(2)[1],16)]
+                t.append(tmp)
+            print t
+            state_aux[i][j] = t[0]^t[1]^t[2]^t[3]
+            t=[]
+
+    return state_aux
 
 def ShiftRows(state):
+    #print ''
     state[1] = state[1][1:] + state[1][:1]
     state[2] = state[2][2:] + state[2][:2]
     state[3] = state[3][3:] + state[3][:3]
+    #for i in range(4):
+    #    for j in range(4):
+            #print '%x'%state[i][j],
+        #print ''
     return state 
 
 def SubBytes(state):
@@ -201,8 +244,8 @@ def KeyExpansion(key,wc,Nk,Nr):
             print ' w[%d] = %s\n\n'%(i,hex(w[i]))
         i += 1
     i=Nk
-    print '  i     temp       After      After      Rcon[i/Nk]    After XOR   w[i-Nk]   w[i]= temp'
-    print '(dec)             RotWord    SubWord                   with rcon             xor w[i-Nk]'
+    #print '  i     temp       After      After      Rcon[i/Nk]    After XOR   w[i-Nk]   w[i]= temp'
+    #print '(dec)             RotWord    SubWord                   with rcon             xor w[i-Nk]'
     while(i < Nb*(Nr+1)):
         res['v1']=str(i).zfill(2)
         temp = w[i-1]
@@ -217,7 +260,7 @@ def KeyExpansion(key,wc,Nk,Nr):
         w[i] = w[i-Nk] ^ temp
         res['v8']=hex(w[i])[2:].zfill(8)
         i += 1
-        print '  %s    %s  %s   %s     %s     %s    %s   %s  '%(res['v1'],res['v2'],res['v3'],res['v4'],res['v5'],res['v6'],res['v7'],res['v8'])
+        #print '  %s    %s  %s   %s     %s     %s    %s   %s  '%(res['v1'],res['v2'],res['v3'],res['v4'],res['v5'],res['v6'],res['v7'],res['v8'])
         res = res.fromkeys(res,'        ')
     return w
 
